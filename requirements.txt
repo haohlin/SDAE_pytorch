@@ -1,0 +1,5 @@
+# pip3 install -U -r requirements.txt
+
+numpy
+torch >= 1.2
+matplotlib

@@ -14,7 +14,7 @@ import numpy as np
 
 def train():
 	'''
-	Training a Stacked DAE. Generate 'observation.data', put it in dataset folder and use it for training
+	Training a Stacked DAE. Generate 'observation.data', put it in dataset folder and use it for training.
 	
 	'''
 	device = select_device()
@@ -25,7 +25,7 @@ def train():
 	final_net = StackDAE(in_dim, end_dim, stack_num)
 
 	# Set Data Loader(input pipeline)
-	Test_dataset = StateData(training_data_size=training_data_size)
+	Test_dataset = StateData(data_size=training_data_size)
 	train_loader_raw = torch.utils.data.DataLoader(Test_dataset, batch_size=opt.batchSize,
 												shuffle=True)#, num_workers=4, pin_memory=True
 	
@@ -44,7 +44,7 @@ def train():
 		stacked_enc_net.add_module("encoder_%d" % i, model.encoder)
 		stacked_dec_net.add_module("decoder_%d" % i, model.decoder)
 
-		Test_dataset = clean_output(train_loader_raw, stacked_enc_net)
+		Test_dataset = clean_output(train_loader_raw, stacked_enc_net, device)
 		train_loader = torch.utils.data.DataLoader(Test_dataset, batch_size=opt.batchSize,
 												shuffle=True)
 		
@@ -75,14 +75,15 @@ def train():
 			 'stack_num': opt.stack_num,
 			 'model': final_net.state_dict()}
 	torch.save(chekp, 'model/chekp.pt')
+	print('\nmodel stored!\n')
 
 	
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--epoch', type=int, default=2, help='number of training epochs')
-	parser.add_argument('--data_size', type=int, default=100000, help='size of training data')
-	parser.add_argument('--lr', type=float, default=0.0004, help='learning rate, default=0.0002')
+	parser.add_argument('--epoch', type=int, default=15, help='number of training epochs')
+	parser.add_argument('--data_size', type=int, default=200000, help='size of training data')
+	parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 	parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
 	parser.add_argument('--batchSize', type=int, default=640, help='input batch size')
 	parser.add_argument('--in_dim', type=int, default=48, help='input dimension')

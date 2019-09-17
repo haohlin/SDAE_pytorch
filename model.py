@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 
 def salt_and_pepper(X, prop):
+	'''Noise generator'''
 	X_clone=X.clone().view(-1, 1)
 	num_feature=X_clone.size(0)
 	mn=X_clone.min()
@@ -19,7 +20,7 @@ def salt_and_pepper(X, prop):
 	return X_clone.view(X.size())
 
 class DAE(nn.Module):
-	r'''
+	'''
 	Denoising auto-encoder net structure (default): 
 	input (in: in_dim) --> 
 	--> hidden layer (Linear(in: in_dim, out: out_dim), activation: LeakyReLU) --> 
@@ -98,6 +99,7 @@ class DAE(nn.Module):
 		
 
 class StackDAE(nn.Module):
+	'''Stacked DAE network initializer'''
 	def __init__(self, in_dim, out_dim, layer_num):
 		super(StackDAE, self).__init__()
 

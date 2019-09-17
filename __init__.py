@@ -1,2 +1,2 @@
-from .extract import extract
+from .extract import Autoencoder
 from . import utils

@@ -1,6 +1,5 @@
 """Tests for utility functions."""
 import numpy as np
-import pytest
 import torch
 
 from utils import StateData, select_device, clean_output

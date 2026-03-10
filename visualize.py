@@ -1,91 +1,100 @@
-from model import StackDAE
-import utils
-import torch
-import numpy as np
+"""Visualization of SDAE features and reconstructions."""
+import os
 import argparse
+import torch
 import matplotlib
+matplotlib.use('Agg')  # non-interactive backend
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from model import StackDAE
+import utils
 
-def visualize(data_size = 10000):
-	'''
-	Plot 3-dimensional feature space and reconstructed result. 
-	Images are stored in 'result_SDAE'
-	* Have to used autoencoder models with 3-dimensional output
-	 Can only be used on training data *
 
-	'''
-	batchSize = 100
-	device = utils.select_device()
-	Test_dataset = utils.StateData(data_size=data_size)
-	visu_loader = torch.utils.data.DataLoader(Test_dataset, batch_size=batchSize, shuffle=True)
-	
-	chekp = torch.load('model/chekp.pt')
-	reconstruct_dim = chekp['in_dim']
-	feature_dim = chekp['out_dim']
-	chekp_model = chekp['model']
-	stack_num = chekp['stack_num']
-	
-	model = StackDAE(reconstruct_dim, feature_dim, stack_num)
+def visualize(data_size=10000, model_path='model/chekp.pt', output_dir='result_SDAE'):
+    """Plot 3D feature space and reconstructed results.
 
-	model.to(device).load_state_dict(chekp_model)
-	model.eval()
+    Args:
+        data_size (int): number of data points to visualize
+        model_path (str): path to trained model checkpoint
+        output_dir (str): directory to save result images
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    batchSize = 100
+    device = utils.select_device()
+    dataset = utils.StateData(data_size=data_size)
+    visu_loader = torch.utils.data.DataLoader(dataset, batch_size=batchSize, shuffle=True)
 
-	reconstruct_stack = []
-	feature_stack = []
-	with torch.no_grad():
-		for i, data in enumerate(visu_loader):
-			data = data.to(device)
-			reconstruct = model.forward(data)
-			reconstruct_stack.append(reconstruct.cpu())
-			feature_stack.append(model.hidden_feature.cpu())
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    reconstruct_dim = checkpoint['in_dim']
+    feature_dim = checkpoint['out_dim']
+    stack_num = checkpoint['stack_num']
 
-	reconstruct_stack = torch.cat(reconstruct_stack).numpy()
-	feature_stack = torch.cat(feature_stack).numpy()
+    model = StackDAE(reconstruct_dim, feature_dim, stack_num)
+    model.to(device).load_state_dict(checkpoint['model'])
+    model.eval()
 
-	print('%d data points, input size: %d, feature size: %d' % (feature_stack.shape[0], reconstruct_dim, feature_stack.shape[1]))
+    reconstruct_stack = []
+    feature_stack = []
+    with torch.no_grad():
+        for data in visu_loader:
+            data = data.to(device)
+            reconstruct = model(data)
+            reconstruct_stack.append(reconstruct.cpu())
+            feature_stack.append(model.hidden_feature.cpu())
 
-	fig1 = plt.figure()
-	ax = Axes3D(fig1)
-	ax.scatter(feature_stack[:,0], feature_stack[:,1], feature_stack[:,2])
-	fig1.savefig('result_SDAE/result_feature.png')
+    reconstruct_stack = torch.cat(reconstruct_stack).numpy()
+    feature_stack = torch.cat(feature_stack).numpy()
 
-	fig2 = plt.figure()
-	ax = Axes3D(fig2)
-	ax.scatter(reconstruct_stack[:,-8], reconstruct_stack[:,-7], reconstruct_stack[:,-6])
-	fig2.savefig('result_SDAE/result_reconstruct.png')
+    print('%d data points, input size: %d, feature size: %d' %
+          (feature_stack.shape[0], reconstruct_dim, feature_stack.shape[1]))
 
-	return feature_stack
+    fig1 = plt.figure()
+    ax = Axes3D(fig1)
+    ax.scatter(feature_stack[:, 0], feature_stack[:, 1], feature_stack[:, 2])
+    fig1.savefig(os.path.join(output_dir, 'result_feature.png'))
+    plt.close(fig1)
 
-def visualize_orig(data_size = 10000):
-	'''
-	Plot positions(x, y, z) of the last joint of original data(observation). 
-	* Can only be used on training data *
+    fig2 = plt.figure()
+    ax = Axes3D(fig2)
+    ax.scatter(reconstruct_stack[:, -8], reconstruct_stack[:, -7], reconstruct_stack[:, -6])
+    fig2.savefig(os.path.join(output_dir, 'result_reconstruct.png'))
+    plt.close(fig2)
 
-	'''
-	batchSize = 100
-	device = utils.select_device()
-	Test_dataset = utils.StateData(data_size)
-	visu_loader = torch.utils.data.DataLoader(Test_dataset, batch_size=batchSize, shuffle=True)
+    return feature_stack
 
-	output_stack = torch.FloatTensor(48).unsqueeze(0)
 
-	for i, data in enumerate(visu_loader):
-		output_stack = torch.cat((output_stack, data))
+def visualize_orig(data_size=10000, output_dir='result_SDAE'):
+    """Plot positions of the last joint from original observation data.
 
-	output_stack = output_stack[1:].numpy()
-	fig = plt.figure()
+    Args:
+        data_size (int): number of data points
+        output_dir (str): directory to save result images
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    batchSize = 100
+    dataset = utils.StateData(data_size)
+    visu_loader = torch.utils.data.DataLoader(dataset, batch_size=batchSize, shuffle=True)
 
-	ax = Axes3D(fig)
-	ax.scatter(output_stack[:,-8],output_stack[:,-7],output_stack[:,-6])
-	fig.savefig('result_SDAE/result_orig.png')
+    output_stack = []
+    for data in visu_loader:
+        output_stack.append(data)
 
-	
+    output_stack = torch.cat(output_stack).numpy()
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.scatter(output_stack[:, -8], output_stack[:, -7], output_stack[:, -6])
+    fig.savefig(os.path.join(output_dir, 'result_orig.png'))
+    plt.close(fig)
+
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--data_size', type=int, default=10000, help='size of data used for visualization')
-
-	opt = parser.parse_args()
-	visualize(opt.data_size)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_size', type=int, default=10000,
+                        help='size of data used for visualization')
+    parser.add_argument('--model_path', type=str, default='model/chekp.pt',
+                        help='path to trained model')
+    parser.add_argument('--output_dir', type=str, default='result_SDAE',
+                        help='output directory for plots')
+    opt = parser.parse_args()
+    visualize(opt.data_size, opt.model_path, opt.output_dir)

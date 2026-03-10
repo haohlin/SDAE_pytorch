@@ -39,6 +39,13 @@ class TestStateData:
         item = StateData(data=data, data_size=5)[0]
         assert torch.isfinite(item).all()
 
+    def test_normalize_false(self):
+        """When normalize=False, data should pass through as-is."""
+        data = [np.array([10.0, -5.0, 3.0] * 16) for _ in range(5)]
+        item = StateData(data=data, data_size=5, normalize=False)[0]
+        assert item[0].item() == 10.0
+        assert item[1].item() == -5.0
+
     def test_dataloader_integration(self):
         data = [np.random.randn(48).astype(np.float64) for _ in range(100)]
         loader = torch.utils.data.DataLoader(
@@ -66,7 +73,8 @@ class TestSplitDataset:
 
 class TestCleanOutput:
 
-    def test_output_dataset_type(self):
+    def test_output_not_renormalized(self):
+        """clean_output should return data without re-normalization."""
         data = [np.random.randn(48).astype(np.float64) for _ in range(64)]
         loader = torch.utils.data.DataLoader(
             StateData(data=data, data_size=64), batch_size=16)
@@ -74,4 +82,5 @@ class TestCleanOutput:
         encoder = model.stack_enc[:1]
         result = clean_output(loader, encoder, torch.device('cpu'))
         assert isinstance(result, StateData)
+        assert result.normalize is False
         assert len(result) == 64

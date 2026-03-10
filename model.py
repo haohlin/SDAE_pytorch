@@ -12,7 +12,7 @@ class DAE(nn.Module):
     """
 
     def __init__(self, in_dim, out_dim):
-        super(DAE, self).__init__()
+        super().__init__()
         self.in_dim = int(in_dim)
         self.out_dim = int(out_dim)
         self.encoder = nn.Sequential(
@@ -20,11 +20,13 @@ class DAE(nn.Module):
             nn.LeakyReLU())
         self.decoder = nn.Linear(self.out_dim, self.in_dim)
 
-    def forward(self, input):
-        size = input.size()
-        self.hidden_output = self.encoder(input)
-        output = self.decoder(self.hidden_output)
-        return output.view(size)
+    def forward(self, x):
+        hidden = self.encoder(x)
+        return self.decoder(hidden)
+
+    def encode(self, x):
+        """Encode input to hidden representation."""
+        return self.encoder(x)
 
 
 class StackDAE(nn.Module):
@@ -40,36 +42,49 @@ class StackDAE(nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, layer_num):
-        super(StackDAE, self).__init__()
+        super().__init__()
 
-        stride = pow(in_dim / out_dim, 1 / layer_num)
+        # Pre-compute all layer dimensions to avoid float drift
+        dims = self._compute_dims(in_dim, out_dim, layer_num)
 
         self.stack_enc = nn.Sequential()
         self.stack_dec = nn.Sequential()
 
-        cur_dim = in_dim
         # Build stacked encoder
         for i in range(layer_num):
-            next_dim = cur_dim / stride
             self.stack_enc.add_module(
                 'encoder_%d' % i,
-                nn.Sequential(nn.Linear(int(cur_dim), int(next_dim)), nn.LeakyReLU()))
-            cur_dim = next_dim
+                nn.Sequential(nn.Linear(dims[i], dims[i + 1]), nn.LeakyReLU()))
 
         # Build stacked decoder (reverse order)
         for i in range(layer_num):
-            next_dim = cur_dim * stride
+            dec_idx = layer_num - i
             self.stack_dec.add_module(
                 'decoder_%d' % (layer_num - i - 1),
-                nn.Linear(int(cur_dim), int(next_dim)))
-            cur_dim = next_dim
+                nn.Linear(dims[dec_idx], dims[dec_idx - 1]))
 
-    def forward(self, input):
-        self.hidden_feature = self.stack_enc(input)
-        output = self.stack_dec(self.hidden_feature)
-        return output
+    @staticmethod
+    def _compute_dims(in_dim, out_dim, layer_num):
+        """Pre-compute integer dimensions for each layer to avoid float drift.
 
-    def extract(self, input):
+        Returns:
+            list[int]: dimensions from input to bottleneck (length = layer_num + 1)
+        """
+        stride = pow(in_dim / out_dim, 1 / layer_num)
+        dims = [in_dim]
+        cur = in_dim
+        for i in range(layer_num - 1):
+            cur = cur / stride
+            dims.append(int(round(cur)))
+        dims.append(int(round(out_dim)))  # Force exact target dim at bottleneck
+        return dims
+
+    def forward(self, x):
+        """Forward pass returning (reconstruction, features) tuple."""
+        features = self.stack_enc(x)
+        reconstruction = self.stack_dec(features)
+        return reconstruction, features
+
+    def extract(self, x):
         """Extract bottleneck features without decoding."""
-        feature = self.stack_enc(input)
-        return feature
+        return self.stack_enc(x)

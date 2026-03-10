@@ -1,5 +1,6 @@
 """Training script for Stacked Denoising Autoencoder."""
 import os
+import copy
 import argparse
 import logging
 from collections import OrderedDict
@@ -49,6 +50,7 @@ def train_dae_layer(model, train_loader, val_loader, device, noise_fn, opt, laye
     best_val_loss = float('inf')
     patience_counter = 0
     best_state = None
+    output = None
 
     for ep in range(opt.epoch):
         # --- Training ---
@@ -114,7 +116,7 @@ def train_dae_layer(model, train_loader, val_loader, device, noise_fn, opt, laye
             if avg_val_loss < best_val_loss - opt.min_delta:
                 best_val_loss = avg_val_loss
                 patience_counter = 0
-                best_state = model.state_dict().copy()
+                best_state = copy.deepcopy(model.state_dict())
             else:
                 patience_counter += 1
                 if patience_counter >= opt.patience:
@@ -140,8 +142,8 @@ def train(opt):
 
     final_net = StackDAE(in_dim, end_dim, stack_num)
 
-    # Compute geometric stride to match StackDAE's layer sizing
-    stride = pow(in_dim / end_dim, 1 / stack_num)
+    # Use same dimension list as StackDAE to avoid float drift
+    dims = StackDAE._compute_dims(in_dim, end_dim, stack_num)
 
     # Get noise function
     noise_fn = get_noise_fn(opt.noise_type)
@@ -174,18 +176,18 @@ def train(opt):
             val_dataset, batch_size=opt.batchSize, shuffle=False)
 
     # Layer-wise pretraining
-    cur_in_dim = in_dim
-    out_dim = in_dim / stride
     stacked_enc_net = nn.Sequential()
     stacked_dec_net = nn.Sequential()
     train_loader = train_loader_raw
     val_loader = val_loader_raw
 
     for i in range(stack_num):
+        cur_in_dim = dims[i]
+        cur_out_dim = dims[i + 1]
         logger.info('--- Training layer %d/%d (dim: %d -> %d) ---',
-                     i + 1, stack_num, int(cur_in_dim), int(out_dim))
+                     i + 1, stack_num, cur_in_dim, cur_out_dim)
 
-        model = DAE(int(cur_in_dim), int(out_dim)).to(device)
+        model = DAE(cur_in_dim, cur_out_dim).to(device)
 
         train_dae_layer(model, train_loader, val_loader,
                         device, noise_fn, opt, layer=i + 1)
@@ -203,9 +205,6 @@ def train(opt):
             val_enc_dataset = clean_output(val_loader_raw, stacked_enc_net, device)
             val_loader = torch.utils.data.DataLoader(
                 val_enc_dataset, batch_size=opt.batchSize, shuffle=False)
-
-        cur_in_dim /= stride
-        out_dim = cur_in_dim / stride
 
     # Assemble final stacked model
     stacked_enc_dict = stacked_enc_net.state_dict()
@@ -228,8 +227,8 @@ def train(opt):
         loader = val_loader_raw if val_loader_raw is not None else train_loader_raw
         for data in loader:
             data = data.to(device)
-            output = final_net(data)
-            total_loss += loss_fn(output, data).item()
+            reconstruction, _ = final_net(data)
+            total_loss += loss_fn(reconstruction, data).item()
             total_batches += 1
     final_loss = total_loss / max(total_batches, 1)
     logger.info('Final reconstruction loss: %.6f', final_loss)

@@ -31,7 +31,8 @@ def visualize(data_size=10000, model_path='model/chekp.pt', output_dir='result_S
     stack_num = checkpoint['stack_num']
 
     model = StackDAE(reconstruct_dim, feature_dim, stack_num)
-    model.to(device).load_state_dict(checkpoint['model'])
+    model.load_state_dict(checkpoint['model'])
+    model.to(device)
     model.eval()
 
     reconstruct_stack = []
@@ -39,9 +40,9 @@ def visualize(data_size=10000, model_path='model/chekp.pt', output_dir='result_S
     with torch.no_grad():
         for data in visu_loader:
             data = data.to(device)
-            reconstruct = model(data)
-            reconstruct_stack.append(reconstruct.cpu())
-            feature_stack.append(model.hidden_feature.cpu())
+            reconstruction, features = model(data)
+            reconstruct_stack.append(reconstruction.cpu())
+            feature_stack.append(features.cpu())
 
     reconstruct_stack = torch.cat(reconstruct_stack).numpy()
     feature_stack = torch.cat(feature_stack).numpy()

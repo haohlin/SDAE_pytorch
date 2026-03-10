@@ -9,16 +9,19 @@ class StateData(Dataset):
     """Dataset for observation state vectors.
 
     Loads data from a pickle file or accepts pre-loaded data.
-    Normalizes each sample to [0, 1] range.
+    Normalizes each sample to [0, 1] range unless normalize=False.
 
     Args:
         data (list, optional): pre-loaded list of numpy arrays
         data_size (int): number of samples to use
         data_path (str): path to pickle file (used if data is None)
+        normalize (bool): whether to normalize samples to [0, 1]
     """
 
-    def __init__(self, data=None, data_size=100000, data_path='dataset/observation.data'):
+    def __init__(self, data=None, data_size=100000, data_path='dataset/observation.data',
+                 normalize=True):
         self.observation = data
+        self.normalize = normalize
         if self.observation is None:
             with open(data_path, 'rb') as f:
                 self.observation = pickle.load(f, encoding='bytes')
@@ -29,11 +32,11 @@ class StateData(Dataset):
 
     def __getitem__(self, idx):
         sample = self.observation[idx]
-        max_val = sample.max()
-        min_val = sample.min()
-        # Normalize to [0, 1] with epsilon for constant inputs
-        state = (sample - min_val) / (max_val - min_val + 1e-8)
-        state = torch.from_numpy(state).float()
+        state = torch.from_numpy(sample).float() if not isinstance(sample, torch.Tensor) else sample.float()
+        if self.normalize:
+            max_val = state.max()
+            min_val = state.min()
+            state = (state - min_val) / (max_val - min_val + 1e-8)
         return state
 
 
@@ -49,8 +52,6 @@ def select_device(force_cpu=False):
     cuda = False if force_cpu else torch.cuda.is_available()
     device = torch.device('cuda:0' if cuda else 'cpu')
 
-    if not cuda:
-        print('Using CPU')
     if cuda:
         c = 1024 ** 2
         ng = torch.cuda.device_count()
@@ -60,6 +61,8 @@ def select_device(force_cpu=False):
         for i in range(1, ng):
             print("           device%g _CudaDeviceProperties(name='%s', total_memory=%dMB)" %
                   (i, x[i].name, x[i].total_memory / c))
+    else:
+        print('Using CPU')
     print('')
     return device
 
@@ -67,8 +70,8 @@ def select_device(force_cpu=False):
 def clean_output(train_loader, stacked_net, device):
     """Generate clean encoder outputs for training next layer.
 
-    Passes data through the current encoder stack and collects outputs
-    to form a new dataset for the next autoencoder layer.
+    Passes data through the current encoder stack and collects outputs.
+    Returns a dataset with normalize=False to avoid double normalization.
 
     Args:
         train_loader: DataLoader with input data
@@ -76,16 +79,15 @@ def clean_output(train_loader, stacked_net, device):
         device: torch device
 
     Returns:
-        StateData: dataset of encoder outputs
+        StateData: dataset of encoder outputs (not re-normalized)
     """
     output_stack = []
     with torch.no_grad():
         for data in train_loader:
             data = data.to(device)
             output = stacked_net(data).cpu().numpy()
-            for j in range(output.shape[0]):
-                output_stack.append(output[j])
-    return StateData(output_stack)
+            output_stack.extend(output)
+    return StateData(output_stack, normalize=False)
 
 
 def split_dataset(dataset, val_ratio=0.1):

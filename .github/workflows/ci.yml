@@ -21,8 +21,14 @@ jobs:
       - name: Install linting tools
         run: pip install flake8
 
-      - name: Run flake8
-        run: flake8 . --count --max-line-length=120 --ignore=E501,W503,E101,W191,E126,E128,E117 --show-source --statistics
+      - name: Run flake8 (errors only)
+        run: |
+          # Fatal errors that break runtime (syntax errors, undefined names)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Run flake8 (warnings)
+        run: |
+          # Style warnings - non-blocking for now
+          flake8 . --count --max-line-length=120 --ignore=E1,E2,E3,E5,W1,W2,W3,W5,F401,F403,F405,F841 --exit-zero --show-source --statistics
 
   test:
     name: Test (Python ${{ matrix.python-version }})

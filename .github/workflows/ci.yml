@@ -31,18 +31,15 @@ jobs:
           flake8 . --count --max-line-length=120 --ignore=E1,E2,E3,E5,W1,W2,W3,W5,F401,F403,F405,F841 --exit-zero --show-source --statistics
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |

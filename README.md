@@ -1,50 +1,79 @@
 # SDAE_pytorch
 
-## Training and visualization
-For training and visualization, go into folder `SDAE_pytorch`. Place the training data (`observation.data`) in `dataset` folder, and use following commands for training. SDAE model is trained and stored as `chept.pt` in folder `model`, and will be used for visualization and feature extraction.
+Stacked Denoising Autoencoder (SDAE) implementation in PyTorch with layer-wise pretraining.
 
-Training:
+## Features
+
+- **Layer-wise pretraining** with greedy training of individual DAE layers
+- **Configurable noise types**: salt-and-pepper, gaussian, masking
+- **Train/validation split** with configurable ratio
+- **Early stopping** with patience and minimum delta
+- **Learning rate warmup** (optional linear warmup)
+- **TensorBoard logging** for loss curves and learning rates
+- **3D visualization** of feature space and reconstructions
+
+## Training
+
+Place training data (`observation.data`) in the `dataset/` folder.
+
+```bash
+# Basic training
+python train.py
+
+# With all features enabled
+python train.py \
+    --noise_type gaussian \
+    --noise_r 15 \
+    --val_ratio 0.1 \
+    --patience 5 \
+    --warmup_epochs 3 \
+    --tensorboard \
+    --log_dir runs/experiment_1
+
+# View TensorBoard logs
+tensorboard --logdir runs/
 ```
-usage: python train.py [-h] [--epoch EPOCH] [--data_size DATA_SIZE] [--lr LR]
-                [--workers WORKERS] [--batchSize BATCHSIZE] [--in_dim IN_DIM]
-                [--out_dim OUT_DIM] [--stack_num STACK_NUM]
-                [--noise_r NOISE_R]
 
-optional arguments:
-  -h, --help              show this help message and exit
-  --epoch EPOCH           number of training epochs
-  --data_size DATA_SIZE   size of training data
-  --lr LR                 learning rate, default=0.0002
-  --workers WORKERS       number of data loading workers
-  --batchSize BATCHSIZE   input batch size
-  --in_dim IN_DIM         input dimension
-  --out_dim OUT_DIM       output(feature) dimension
-  --stack_num STACK_NUM   number of hidden layers
-  --noise_r NOISE_R       Ratio of noise
+### Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--epoch` | 15 | Training epochs per layer |
+| `--data_size` | 200000 | Size of training data |
+| `--lr` | 0.0002 | Learning rate |
+| `--batchSize` | 640 | Batch size |
+| `--in_dim` | 48 | Input dimension |
+| `--out_dim` | 3 | Feature (bottleneck) dimension |
+| `--stack_num` | 4 | Number of encoder/decoder layers |
+| `--noise_type` | salt_and_pepper | Noise type: `salt_and_pepper`, `gaussian`, `masking` |
+| `--noise_r` | 10 | Noise ratio (percent) |
+| `--val_ratio` | 0.1 | Validation split ratio (0 to disable) |
+| `--patience` | 0 | Early stopping patience (0 to disable) |
+| `--min_delta` | 0.0001 | Minimum improvement for early stopping |
+| `--warmup_epochs` | 0 | Linear LR warmup epochs (0 to disable) |
+| `--tensorboard` | off | Enable TensorBoard logging |
+| `--log_dir` | runs/sdae_training | TensorBoard log directory |
+| `--save_path` | model/chekp.pt | Model save path |
+
+## Visualization
+
+```bash
+python visualize.py --data_size 10000
 ```
-Visualization:
-```
-usage: python visualize.py [-h] [--data_size DATA_SIZE]
 
-optional arguments:
-  -h, --help              show this help message and exit
-  --data_size DATA_SIZE   size of data used for visualization
+## Feature Extraction
 
-```
-
-## Feature extraction
-Place the module in the root folder of the project. Use `from SDAE_pytorch.extract import Autoencoder` to import the feature extraction class. 
-
-Example:
 ```python
 from SDAE_pytorch.extract import Autoencoder
 import numpy as np
 
-SDAE = Autoencoder()
-
-for i in range(10):
-	dumb_data = np.random.randn(48)
-	dumb_feature = SDAE.extract(dumb_data)
-
-	print(dumb_feature)
+sdae = Autoencoder()
+features = sdae.extract(np.random.randn(48))
+print(features)
 ```
+
+## CI
+
+- **Lint**: flake8 (fatal errors block, style warnings informational)
+- **Tests**: pytest on Python 3.11
+- **AI Review**: CodeRabbit on all PRs

@@ -1,31 +1,38 @@
-from . import utils
+"""Feature extraction using a trained Stacked DAE model."""
 import torch
-import argparse
 import numpy as np
 from .model import StackDAE
+from . import utils
+
 
 class Autoencoder(object):
-	def __init__(self):
-		self.device = utils.select_device()
-		chekp = torch.load('SDAE_pytorch/model/chekp.pt')
-		self.reconstruct_dim = chekp['in_dim']
-		feature_dim = chekp['out_dim']
-		chekp_model = chekp['model']
-		stack_num = chekp['stack_num']
+    """Wrapper for loading a trained SDAE and extracting features.
 
-		self.model = StackDAE(self.reconstruct_dim, feature_dim, stack_num)
-		self.model.to(self.device).load_state_dict(chekp_model)
-		self.model.eval()
+    Args:
+        model_path (str): path to saved checkpoint
+    """
 
+    def __init__(self, model_path='SDAE_pytorch/model/chekp.pt'):
+        self.device = utils.select_device()
+        checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
+        self.reconstruct_dim = checkpoint['in_dim']
+        feature_dim = checkpoint['out_dim']
+        stack_num = checkpoint['stack_num']
 
-	def extract(self, data):
-		''' Input/Output: numpy.ndarray
+        self.model = StackDAE(self.reconstruct_dim, feature_dim, stack_num)
+        self.model.to(self.device).load_state_dict(checkpoint['model'])
+        self.model.eval()
 
-			Data shape must match autoencoder input shape'''
-		data = torch.from_numpy(data).float().to(self.device)
-	
-		with torch.no_grad():
-			feature = self.model.extract(data)
-		feature = feature.detach().cpu().numpy()
-		return feature
+    def extract(self, data):
+        """Extract features from input data.
 
+        Args:
+            data (numpy.ndarray): input array matching model input dimension
+
+        Returns:
+            numpy.ndarray: extracted features
+        """
+        data = torch.from_numpy(data).float().to(self.device)
+        with torch.no_grad():
+            feature = self.model.extract(data)
+        return feature.cpu().numpy()

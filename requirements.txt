@@ -3,3 +3,4 @@
 numpy
 torch >= 1.2
 matplotlib
+tensorboard

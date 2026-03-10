@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "model.py"
+      instructions: "Focus on PyTorch best practices, numerical stability, and correct gradient flow."
+    - path: "train.py"
+      instructions: "Check training loop correctness, state_dict handling, and dimension consistency."
+    - path: "utils.py"
+      instructions: "Check data loading, normalization correctness, and edge cases."
+    - path: "tests/**"
+      instructions: "Ensure good coverage of edge cases and that assertions are meaningful."
+chat:
+  auto_reply: true

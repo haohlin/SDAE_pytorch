@@ -30,18 +30,19 @@ def visualize(data_size = 10000):
 	model = StackDAE(reconstruct_dim, feature_dim, stack_num)
 
 	model.to(device).load_state_dict(chekp_model)
+	model.eval()
 
-	reconstruct_stack = torch.FloatTensor(reconstruct_dim).to(device).unsqueeze(0)
-	feature_stack = torch.FloatTensor(feature_dim).to(device).unsqueeze(0)
-	for i, data in enumerate(visu_loader):
-		data = data.to(device)
-		reconstruct = model.forward(data)
-		reconstruct_stack = torch.cat((reconstruct_stack, reconstruct))
-		feature_stack = torch.cat((feature_stack, model.hidden_feature))
-		
+	reconstruct_stack = []
+	feature_stack = []
+	with torch.no_grad():
+		for i, data in enumerate(visu_loader):
+			data = data.to(device)
+			reconstruct = model.forward(data)
+			reconstruct_stack.append(reconstruct.cpu())
+			feature_stack.append(model.hidden_feature.cpu())
 
-	reconstruct_stack = reconstruct_stack[1:].detach().cpu().numpy()
-	feature_stack = feature_stack[1:].detach().cpu().numpy()
+	reconstruct_stack = torch.cat(reconstruct_stack).numpy()
+	feature_stack = torch.cat(feature_stack).numpy()
 
 	print('%d data points, input size: %d, feature size: %d' % (feature_stack.shape[0], reconstruct_dim, feature_stack.shape[1]))
 

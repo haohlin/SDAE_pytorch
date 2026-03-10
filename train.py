@@ -24,17 +24,20 @@ def train():
 	training_data_size = opt.data_size
 	final_net = StackDAE(in_dim, end_dim, stack_num)
 
+	# Compute geometric stride to match StackDAE's layer sizing
+	stride = pow(in_dim / end_dim, 1 / stack_num)
+
 	# Set Data Loader(input pipeline)
 	Test_dataset = StateData(data_size=training_data_size)
 	train_loader_raw = torch.utils.data.DataLoader(Test_dataset, batch_size=opt.batchSize,
 												shuffle=True)#, num_workers=4, pin_memory=True
 	
 	
-	out_dim = in_dim/2
+	out_dim = in_dim / stride
 	stacked_enc_net = nn.Sequential()
 	stacked_dec_net = nn.Sequential()
 	for i in range(stack_num):
-		model=DAE(in_dim, out_dim).to(device)
+		model=DAE(int(in_dim), int(out_dim)).to(device)
 
 		if i==0:
 			model.train_DAE(train_loader_raw,device, learning_rate=opt.lr, epoch=opt.epoch, noise_r=opt.noise_r, layer=i+1)
@@ -48,8 +51,8 @@ def train():
 		train_loader = torch.utils.data.DataLoader(Test_dataset, batch_size=opt.batchSize,
 												shuffle=True)
 		
-		in_dim /= 2
-		out_dim = in_dim/2
+		in_dim /= stride
+		out_dim = in_dim / stride
 
 	stacked_enc_dict = stacked_enc_net.state_dict()
 	stacked_dec_dict = stacked_dec_net.state_dict()
@@ -57,11 +60,14 @@ def train():
 	new_dec_dict = OrderedDict()
 
 	for k, v in stacked_enc_dict.items():
-		name = 'stack_enc.' + k # add `stack_net.` to encoder model dict
+		name = 'stack_enc.' + k # add `stack_enc.` to encoder model dict
 		new_enc_dict[name] = v
 
-	for k, v in reversed(stacked_dec_dict.items()):
-		name = 'stack_dec.' + k # add `stack_net.` to encoder model dict
+	# Reverse decoder layers: decoder_0 becomes the last in stack_dec, etc.
+	# Remap keys: decoder_i trained standalone -> decoder_(N-1-i) in StackDAE
+	dec_items = list(stacked_dec_dict.items())
+	for k, v in dec_items:
+		name = 'stack_dec.' + k
 		new_dec_dict[name] = v
 
 	new_enc_dict.update(new_dec_dict)

@@ -79,20 +79,20 @@ class DAE(nn.Module):
 		optimizer = optim.Adam(self.parameters(), lr=learning_rate, betas=(0.5, 0.999))
 		scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=6, gamma=0.2)
 
-		for epoch in range(epoch):
+		for ep in range(epoch):
 			
 			for i, data in enumerate(train_loader):
 				data = data.to(device) # Unlike nn.module, .cuda() on tensor is not in-place
 				noise_data = noise_fn(data, float(noise_r)/100)
 				noise_data = noise_data.to(device)
 				
+				optimizer.zero_grad()
 				output=self.forward(noise_data)
 				error=loss_fn(output, data)
 				if i%10 == 0:
-					print('Layer: %d, Epoch : %d, Error: %f' % (layer, epoch+1, error))
+					print('Layer: %d, Epoch : %d, Error: %f' % (layer, ep+1, error))
 				error.backward()
 				optimizer.step()
-				optimizer.zero_grad()
 			scheduler.step()
 	
 		return output

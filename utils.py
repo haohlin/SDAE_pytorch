@@ -15,7 +15,6 @@ class StateData(Dataset):
 			with open('dataset/observation.data', 'rb') as f:
 				self.observation = pickle.load(f, encoding='bytes')
 				self.observation = random.sample(self.observation, data_size)
-			f.close()
 			#self.observation = torch.load('dataset/observation_clusterd.pt')[320000:330000]
 
 	def __len__(self):
@@ -24,7 +23,7 @@ class StateData(Dataset):
         # normalize 0-1
 		max_ob = self.observation[idx].max()
 		min_ob = self.observation[idx].min()
-		state = (self.observation[idx] + min_ob) / (max_ob - min_ob)
+		state = (self.observation[idx] - min_ob) / (max_ob - min_ob + 1e-8)
         # np.array to tensor
 		state = torch.from_numpy(state).float()
 		return state

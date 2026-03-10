@@ -1,6 +1,5 @@
 """Tests for noise functions."""
 import torch
-import numpy as np
 
 from noise import salt_and_pepper, gaussian, masking, get_noise_fn, NOISE_FUNCTIONS
 
@@ -17,7 +16,6 @@ class TestSaltAndPepper:
 
     def test_noise_modifies_values(self):
         torch.manual_seed(42)
-        np.random.seed(42)
         x = torch.randn(100, 48)
         assert not torch.allclose(salt_and_pepper(x, 0.5), x)
 

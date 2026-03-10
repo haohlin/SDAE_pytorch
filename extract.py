@@ -20,7 +20,8 @@ class Autoencoder(object):
         stack_num = checkpoint['stack_num']
 
         self.model = StackDAE(self.reconstruct_dim, feature_dim, stack_num)
-        self.model.to(self.device).load_state_dict(checkpoint['model'])
+        self.model.load_state_dict(checkpoint['model'])
+        self.model.to(self.device)
         self.model.eval()
 
     def extract(self, data):

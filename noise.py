@@ -1,5 +1,4 @@
 """Noise functions for denoising autoencoders."""
-import numpy as np
 import torch
 
 
@@ -13,17 +12,12 @@ def salt_and_pepper(X, prop):
     Returns:
         Tensor: corrupted copy of X
     """
-    X_clone = X.clone().view(-1, 1)
-    num_feature = X_clone.size(0)
-    mn = X_clone.min()
-    mx = X_clone.max()
-    indices = np.random.randint(0, num_feature, int(num_feature * prop))
-    for elem in indices:
-        if np.random.random() < 0.5:
-            X_clone[elem] = mn
-        else:
-            X_clone[elem] = mx
-    return X_clone.view(X.size())
+    X_clone = X.clone()
+    mask = torch.rand_like(X) < prop
+    salt = torch.rand_like(X) < 0.5
+    X_clone[mask & salt] = X.min()
+    X_clone[mask & ~salt] = X.max()
+    return X_clone
 
 
 def gaussian(X, prop):
